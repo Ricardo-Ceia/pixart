@@ -1,13 +1,13 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99
-SDL_CFLAGS = $(shell sdl2-config --cflags)
-SDL_LIBS = $(shell sdl2-config --libs)
+SDL_CFLAGS = $(shell sdl2-config --cflags) $(shell pkg-config --cflags SDL2_ttf)
+SDL_LIBS = $(shell sdl2-config --libs) $(shell pkg-config --libs SDL2_ttf)
 
 SRC_DIR = src
 INCLUDE_DIR = include
 BUILD_DIR = build
 
-SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/grid.c $(SRC_DIR)/pixel.c $(SRC_DIR)/renderer.c
+SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/grid.c $(SRC_DIR)/pixel.c $(SRC_DIR)/renderer.c $(SRC_DIR)/fps.c
 OBJECTS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 EXECUTABLE = $(BUILD_DIR)/pixel_art
 
