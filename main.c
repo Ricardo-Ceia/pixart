@@ -66,6 +66,13 @@ int main(){
             drawPixel(renderer,mouseX,mouseY,(Color){255,0,0,255});
           }
           break;
+        case SDL_MOUSEMOTION:
+          if (event.motion.state & SDL_BUTTON_LMASK) {
+            uint16_t mouseX = event.button.x;
+            uint16_t  mouseY = event.button.y;
+            drawPixel(renderer,mouseX,mouseY,(Color){255,0,0,255});
+          }
+          break;
       }
     }
     SDL_RenderPresent(renderer);
