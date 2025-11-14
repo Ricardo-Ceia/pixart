@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include "color.h"
+#include "grid.h"
 
 typedef struct {
   float hue;        // 0-360
@@ -16,7 +17,7 @@ typedef struct {
 
 ColorPicker* createColorPicker();
 void destroyColorPicker(ColorPicker* picker);
-void drawColorPicker(SDL_Renderer* renderer, ColorPicker* picker);
+void drawColorPicker(SDL_Renderer* renderer, ColorPicker* picker, Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]);
 void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scrollDelta);
 void setColorPickerDragging(ColorPicker* picker, int isDragging);
 int isMouseOverColorPicker(ColorPicker* picker, int mouseX, int mouseY);

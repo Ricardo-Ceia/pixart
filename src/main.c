@@ -5,10 +5,101 @@
 #include "renderer.h"
 #include "grid.h"
 #include "pixel.h"
-#include <fps.h>
+#include "fps.h"
 #include "colorpicker.h"
 
-int main() {
+Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT];
+
+static void initializeGrid(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      gridColorArray[x][y] = (Color){0, 0, 0, 255};
+    }
+  }
+  setGrid(gridColorArray);
+}
+
+static void handleMouseButtonDown(SDL_MouseButtonEvent button, ColorPicker* colorPicker, 
+                                  Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  if (button.button != SDL_BUTTON_LEFT) return;
+  
+  if (isMouseOverColorPicker(colorPicker, button.x, button.y)) {
+    setColorPickerDragging(colorPicker, 1);
+    handleColorPickerInput(colorPicker, button.x, button.y, 0);
+  } else {
+    drawPixelToGrid(gridColorArray, button.x, button.y, getSelectedColor(colorPicker));
+  }
+}
+
+static void handleMouseMotion(SDL_MouseMotionEvent motion, ColorPicker* colorPicker,
+                              Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  if (!(motion.state & SDL_BUTTON_LMASK)) return;
+  
+  if (isMouseOverColorPicker(colorPicker, motion.x, motion.y)) {
+    if (colorPicker->isDragging) {
+      handleColorPickerInput(colorPicker, motion.x, motion.y, 0);
+    }
+  } else {
+    drawPixelToGrid(gridColorArray, motion.x, motion.y, getSelectedColor(colorPicker));
+  }
+}
+
+static void handleMouseButtonUp(SDL_MouseButtonEvent button, ColorPicker* colorPicker) {
+  if (button.button == SDL_BUTTON_LEFT) {
+    setColorPickerDragging(colorPicker, 0);
+  }
+}
+
+static void processEvents(SDL_bool* running, ColorPicker* colorPicker,
+                          Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+      case SDL_QUIT:
+        *running = SDL_FALSE;
+        break;
+      case SDL_MOUSEBUTTONDOWN:
+        handleMouseButtonDown(event.button, colorPicker, gridColorArray);
+        break;
+      case SDL_MOUSEBUTTONUP:
+        handleMouseButtonUp(event.button, colorPicker);
+        break;
+      case SDL_MOUSEMOTION:
+        handleMouseMotion(event.motion, colorPicker, gridColorArray);
+        break;
+    }
+  }
+}
+
+static void updateFrame(SDL_Renderer* renderer, ColorPicker* colorPicker,
+                        Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT],
+                        TTF_Font* font, uint32_t frameTime) {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
+  
+  drawColorPicker(renderer, colorPicker, gridColorArray);
+  renderGrid(renderer, gridColorArray);
+  drawFps(renderer, font, currentFps(frameTime));
+  
+  SDL_RenderPresent(renderer);
+}
+
+static void gameLoop(SDL_Renderer* renderer, ColorPicker* colorPicker,
+                     Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], TTF_Font* font) {
+  SDL_bool running = SDL_TRUE;
+  uint32_t frameStart, frameTime;
+  
+  while (running) {
+    frameStart = SDL_GetTicks();
+    
+    processEvents(&running, colorPicker, gridColorArray);
+    updateFrame(renderer, colorPicker, gridColorArray, font, frameTime);
+    
+    frameTime = SDL_GetTicks() - frameStart;
+  }
+}
+
+int main(void) {
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     printf("SDL_Init Error: %s\n", SDL_GetError());
     return 1;
@@ -35,53 +126,14 @@ int main() {
   }
   
   ColorPicker* colorPicker = createColorPicker();
-  SDL_bool running = SDL_TRUE;
-  SDL_Event event;
-
-  uint32_t frameStart;
-  drawGridOnWindow(renderer);
-  while (running) {
-    frameStart = SDL_GetTicks();
-    while (SDL_PollEvent(&event)) {
-      switch (event.type) {
-        case SDL_QUIT:
-          running = SDL_FALSE;
-          break;
-        case SDL_MOUSEBUTTONDOWN:
-          if (event.button.button == SDL_BUTTON_LEFT) {
-            if (isMouseOverColorPicker(colorPicker, event.button.x, event.button.y)) {
-              setColorPickerDragging(colorPicker, 1);
-              handleColorPickerInput(colorPicker, event.button.x, event.button.y, 0);
-            } else {
-              Color drawColor = getSelectedColor(colorPicker);
-              drawPixel(renderer, event.button.x, event.button.y, drawColor);
-            }
-          }
-          break;
-        case SDL_MOUSEBUTTONUP:
-          if (event.button.button == SDL_BUTTON_LEFT) {
-            setColorPickerDragging(colorPicker, 0);
-          }
-          break;
-        case SDL_MOUSEMOTION:
-          if (event.motion.state & SDL_BUTTON_LMASK) {
-            if (isMouseOverColorPicker(colorPicker, event.motion.x, event.motion.y)) {
-              if (colorPicker->isDragging) {
-                handleColorPickerInput(colorPicker, event.motion.x, event.motion.y, 0);
-              }
-            } else {
-              Color drawColor = getSelectedColor(colorPicker);
-              drawPixel(renderer, event.motion.x, event.motion.y, drawColor);
-            }
-          }
-          break;
-      }
-    }
-    SDL_RenderPresent(renderer);
-    drawColorPicker(renderer,colorPicker);
-    float frames = currentFps(SDL_GetTicks() - frameStart);
-    drawFps(renderer,font,frames);
-  }
+  initializeGrid(gridColorArray);
+  gameLoop(renderer, colorPicker, gridColorArray, font);
+  
+  destroyColorPicker(colorPicker);
+  if (font) TTF_CloseFont(font);
+  cleanupRenderer(renderer, window);
+  TTF_Quit();
+  
   return 0;
 }
 

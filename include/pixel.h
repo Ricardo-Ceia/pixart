@@ -1,9 +1,11 @@
 #ifndef PIXEL_H
 #define PIXEL_H
 
-#include <SDL2/SDL.h>
+#include <stdint.h>
 #include "color.h"
+#include "grid.h"
 
-void drawPixel(SDL_Renderer* renderer, uint16_t mouseX, uint16_t mouseY, Color color);
+void drawPixelToGrid(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], 
+                     uint16_t mouseX, uint16_t mouseY, Color color);
 
 #endif

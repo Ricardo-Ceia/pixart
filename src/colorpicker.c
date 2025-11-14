@@ -40,7 +40,7 @@ static Color hsvToRgb(float h, float s, float v) {
   return color;
 }
 
-ColorPicker* createColorPicker() {
+ColorPicker* createColorPicker(void) {
   ColorPicker* picker = malloc(sizeof(ColorPicker));
   picker->hue = 0.0f;
   picker->saturation = 1.0f;
@@ -56,63 +56,132 @@ void destroyColorPicker(ColorPicker* picker) {
   free(picker);
 }
 
-void drawColorPicker(SDL_Renderer* renderer, ColorPicker* picker) {
-  SDL_SetRenderDrawColor(renderer, 40, 40, 45, 255);
-  SDL_Rect bg = {PICKER_X - 10, PICKER_Y - 10, PICKER_WIDTH + PREVIEW_SIZE + 40, PICKER_HEIGHT + 10};
-  SDL_RenderFillRect(renderer, &bg);
+static void drawLine(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], 
+                     int x1, int y1, int x2, int y2, Color color) {
+  int dx = x2 - x1;
+  int dy = y2 - y1;
+  int steps = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
   
+  for (int step = 0; step <= steps; step++) {
+    int x = x1 + (dx * step) / (steps + 1);
+    int y = y1 + (dy * step) / (steps + 1);
+    
+    if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT) {
+      gridColorArray[x][y] = color;
+    }
+  }
+}
+
+static void drawSelectionCircle(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], int centerX, int centerY) {
+  Color white = {255, 255, 255, 255};
+  int radius = 8;
+  
+  for (int i = 0; i < 8; i++) {
+    float angle = (i / 8.0f) * 2 * M_PI;
+    int x1 = centerX + (int)(cosf(angle) * radius);
+    int y1 = centerY + (int)(sinf(angle) * radius);
+    int x2 = centerX + (int)(cosf(angle + 0.785f) * radius);
+    int y2 = centerY + (int)(sinf(angle + 0.785f) * radius);
+    
+    drawLine(gridColorArray, x1, y1, x2, y2, white);
+  }
+}
+
+static void drawSVSquare(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], ColorPicker* picker) {
   int svHeight = PICKER_HEIGHT - HUE_BAR_HEIGHT - 10;
+  
   for (int y = 0; y < svHeight; y++) {
     for (int x = 0; x < PICKER_WIDTH; x++) {
-      float s = (float)x / PICKER_WIDTH;
-      float v = 1.0f - ((float)y / svHeight);
-      Color c = hsvToRgb(picker->hue, s, v);
-      SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
-      SDL_RenderDrawPoint(renderer, PICKER_X + x, PICKER_Y + y);
+      int screenX = PICKER_X + x;
+      int screenY = PICKER_Y + y;
+      if (screenX >= 0 && screenX < SCREEN_WIDTH && screenY >= 0 && screenY < SCREEN_HEIGHT) {
+        float saturation = (float)x / PICKER_WIDTH;
+        float value = 1.0f - ((float)y / svHeight);
+        Color color = hsvToRgb(picker->hue, saturation, value);
+        gridColorArray[screenX][screenY] = color;
+      }
     }
   }
   
   int selX = PICKER_X + (int)(picker->saturation * PICKER_WIDTH);
   int selY = PICKER_Y + (int)((1.0f - picker->value) * svHeight);
-  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-  for (int i = 0; i < 8; i++) {
-    float angle = (i / 8.0f) * 2 * M_PI;
-    int x1 = selX + (int)(cos(angle) * 8);
-    int y1 = selY + (int)(sin(angle) * 8);
-    int x2 = selX + (int)(cos(angle + 0.785f) * 8);
-    int y2 = selY + (int)(sin(angle + 0.785f) * 8);
-    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
-  }
-  
+  drawSelectionCircle(gridColorArray, selX, selY);
+}
+
+static void drawHueBar(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], ColorPicker* picker) {
+  int svHeight = PICKER_HEIGHT - HUE_BAR_HEIGHT - 10;
   int hueY = PICKER_Y + svHeight + 10;
+  
   for (int x = 0; x < PICKER_WIDTH; x++) {
-    float h = (float)x / PICKER_WIDTH * 360.0f;
-    Color c = hsvToRgb(h, 1, 1);
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
-    SDL_Rect hueRect = {PICKER_X + x, hueY, 1, HUE_BAR_HEIGHT};
-    SDL_RenderFillRect(renderer, &hueRect);
+    float hue = ((float)x / PICKER_WIDTH) * 360.0f;
+    Color color = hsvToRgb(hue, 1.0f, 1.0f);
+    for (int y = 0; y < HUE_BAR_HEIGHT; y++) {
+      int screenX = PICKER_X + x;
+      int screenY = hueY + y;
+      if (screenX >= 0 && screenX < SCREEN_WIDTH && screenY >= 0 && screenY < SCREEN_HEIGHT) {
+        gridColorArray[screenX][screenY] = color;
+      }
+    }
   }
   
   int hueSelX = PICKER_X + (int)(picker->hue / 360.0f * PICKER_WIDTH);
-  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-  SDL_RenderDrawLine(renderer, hueSelX, hueY, hueSelX, hueY + HUE_BAR_HEIGHT);
-  SDL_RenderDrawLine(renderer, hueSelX - 1, hueY, hueSelX - 1, hueY + HUE_BAR_HEIGHT);
-  SDL_RenderDrawLine(renderer, hueSelX + 1, hueY, hueSelX + 1, hueY + HUE_BAR_HEIGHT);
-  
-  SDL_SetRenderDrawColor(renderer, picker->currentColor.r, picker->currentColor.g, 
-                         picker->currentColor.b, picker->currentColor.a);
-  SDL_RenderFillRect(renderer, &picker->previewRect);
-  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-  SDL_RenderDrawRect(renderer, &picker->previewRect);
+  Color white = {255, 255, 255, 255};
+  for (int y = 0; y < HUE_BAR_HEIGHT; y++) {
+    for (int xOffset = -1; xOffset <= 1; xOffset++) {
+      int x = hueSelX + xOffset;
+      int screenY = hueY + y;
+      if (x >= 0 && x < SCREEN_WIDTH && screenY >= 0 && screenY < SCREEN_HEIGHT) {
+        gridColorArray[x][screenY] = white;
+      }
+    }
+  }
 }
 
-void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scrollDelta) {
-  if (!picker->isDragging && scrollDelta == 0) {
-    return; 
+static void drawPreview(Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT], ColorPicker* picker) {
+  int previewX = PICKER_X + PICKER_WIDTH + 20;
+  int previewY = PICKER_Y;
+  
+  for (int x = 0; x < PREVIEW_SIZE; x++) {
+    for (int y = 0; y < PREVIEW_SIZE; y++) {
+      int screenX = previewX + x;
+      int screenY = previewY + y;
+      if (screenX >= 0 && screenX < SCREEN_WIDTH && screenY >= 0 && screenY < SCREEN_HEIGHT) {
+        gridColorArray[screenX][screenY] = picker->currentColor;
+      }
+    }
   }
   
+  Color borderColor = {200, 200, 200, 255};
+  for (int i = 0; i < PREVIEW_SIZE; i++) {
+    if (previewX + i >= 0 && previewX + i < SCREEN_WIDTH) {
+      if (previewY >= 0 && previewY < SCREEN_HEIGHT) {
+        gridColorArray[previewX + i][previewY] = borderColor;
+      }
+      if (previewY + PREVIEW_SIZE - 1 >= 0 && previewY + PREVIEW_SIZE - 1 < SCREEN_HEIGHT) {
+        gridColorArray[previewX + i][previewY + PREVIEW_SIZE - 1] = borderColor;
+      }
+    }
+    if (previewY + i >= 0 && previewY + i < SCREEN_HEIGHT) {
+      if (previewX >= 0 && previewX < SCREEN_WIDTH) {
+        gridColorArray[previewX][previewY + i] = borderColor;
+      }
+      if (previewX + PREVIEW_SIZE - 1 >= 0 && previewX + PREVIEW_SIZE - 1 < SCREEN_WIDTH) {
+        gridColorArray[previewX + PREVIEW_SIZE - 1][previewY + i] = borderColor;
+      }
+    }
+  }
+}
+
+void drawColorPicker(SDL_Renderer* renderer, ColorPicker* picker, 
+                     Color gridColorArray[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  (void)renderer;
+  drawSVSquare(gridColorArray, picker);
+  drawHueBar(gridColorArray, picker);
+  drawPreview(gridColorArray, picker);
+}
+
+static void updateSVSelection(ColorPicker* picker, int mouseX, int mouseY) {
   int svHeight = PICKER_HEIGHT - HUE_BAR_HEIGHT - 10;
-  int hueY = PICKER_Y + svHeight + 10;
   
   if (mouseX >= PICKER_X && mouseX < PICKER_X + PICKER_WIDTH &&
       mouseY >= PICKER_Y && mouseY < PICKER_Y + svHeight) {
@@ -122,18 +191,35 @@ void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scr
     picker->value = fmaxf(0.0f, fminf(1.0f, picker->value));
     picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
   }
+}
+
+static void updateHueSelection(ColorPicker* picker, int mouseX, int mouseY) {
+  int svHeight = PICKER_HEIGHT - HUE_BAR_HEIGHT - 10;
+  int hueY = PICKER_Y + svHeight + 10;
+  
   if (mouseX >= PICKER_X && mouseX < PICKER_X + PICKER_WIDTH &&
       mouseY >= hueY && mouseY < hueY + HUE_BAR_HEIGHT) {
     picker->hue = ((float)(mouseX - PICKER_X) / PICKER_WIDTH) * 360.0f;
     picker->hue = fmaxf(0.0f, fminf(360.0f, picker->hue));
     picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
   }
+}
+
+static void updateHueFromScroll(ColorPicker* picker, int scrollDelta) {
+  picker->hue += scrollDelta * 5.0f;
+  if (picker->hue < 0) picker->hue += 360;
+  if (picker->hue >= 360) picker->hue -= 360;
+  picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
+}
+
+void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scrollDelta) {
+  if (!picker->isDragging && scrollDelta == 0) return;
+  
+  updateSVSelection(picker, mouseX, mouseY);
+  updateHueSelection(picker, mouseX, mouseY);
   
   if (scrollDelta != 0) {
-    picker->hue += scrollDelta * 5.0f;
-    if (picker->hue < 0) picker->hue += 360;
-    if (picker->hue >= 360) picker->hue -= 360;
-    picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
+    updateHueFromScroll(picker, scrollDelta);
   }
 }
 
@@ -142,6 +228,7 @@ void setColorPickerDragging(ColorPicker* picker, int isDragging) {
 }
 
 int isMouseOverColorPicker(ColorPicker* picker, int mouseX, int mouseY) {
+  (void)picker;
   return (mouseX >= PICKER_X - 10 && mouseX <= PICKER_X + PICKER_WIDTH + PREVIEW_SIZE + 30 && 
           mouseY >= PICKER_Y - 10 && mouseY <= PICKER_Y + PICKER_HEIGHT);
 }
