@@ -108,13 +108,12 @@ void drawColorPicker(SDL_Renderer* renderer, ColorPicker* picker) {
 
 void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scrollDelta) {
   if (!picker->isDragging && scrollDelta == 0) {
-    return; // Only process if dragging or scrolling
+    return; 
   }
   
   int svHeight = PICKER_HEIGHT - HUE_BAR_HEIGHT - 10;
   int hueY = PICKER_Y + svHeight + 10;
   
-  // Check if clicking in SV square
   if (mouseX >= PICKER_X && mouseX < PICKER_X + PICKER_WIDTH &&
       mouseY >= PICKER_Y && mouseY < PICKER_Y + svHeight) {
     picker->saturation = (float)(mouseX - PICKER_X) / PICKER_WIDTH;
@@ -123,8 +122,6 @@ void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scr
     picker->value = fmaxf(0.0f, fminf(1.0f, picker->value));
     picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
   }
-  
-  // Check if clicking in hue bar
   if (mouseX >= PICKER_X && mouseX < PICKER_X + PICKER_WIDTH &&
       mouseY >= hueY && mouseY < hueY + HUE_BAR_HEIGHT) {
     picker->hue = ((float)(mouseX - PICKER_X) / PICKER_WIDTH) * 360.0f;
@@ -132,7 +129,6 @@ void handleColorPickerInput(ColorPicker* picker, int mouseX, int mouseY, int scr
     picker->currentColor = hsvToRgb(picker->hue, picker->saturation, picker->value);
   }
   
-  // Handle scroll wheel for hue adjustment
   if (scrollDelta != 0) {
     picker->hue += scrollDelta * 5.0f;
     if (picker->hue < 0) picker->hue += 360;
