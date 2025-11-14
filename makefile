@@ -7,7 +7,7 @@ SRC_DIR = src
 INCLUDE_DIR = include
 BUILD_DIR = build
 
-SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/grid.c $(SRC_DIR)/pixel.c $(SRC_DIR)/renderer.c $(SRC_DIR)/fps.c
+SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/grid.c $(SRC_DIR)/pixel.c $(SRC_DIR)/renderer.c $(SRC_DIR)/fps.c $(SRC_DIR)/colorpicker.c
 OBJECTS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 EXECUTABLE = $(BUILD_DIR)/pixel_art
 
@@ -17,7 +17,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(SDL_LIBS)
+	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(SDL_LIBS) -lm
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@

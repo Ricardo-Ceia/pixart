@@ -6,6 +6,7 @@
 #include "grid.h"
 #include "pixel.h"
 #include <fps.h>
+#include "colorpicker.h"
 
 int main() {
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -32,13 +33,13 @@ int main() {
   if (font == NULL) {
     printf("Failed to load font: %s\n", TTF_GetError());
   }
-
+  
+  ColorPicker* colorPicker = createColorPicker();
   SDL_bool running = SDL_TRUE;
   SDL_Event event;
 
   uint32_t frameStart;
   drawGridOnWindow(renderer);
-
   while (running) {
     frameStart = SDL_GetTicks();
     while (SDL_PollEvent(&event)) {
@@ -48,17 +49,36 @@ int main() {
           break;
         case SDL_MOUSEBUTTONDOWN:
           if (event.button.button == SDL_BUTTON_LEFT) {
-            drawPixel(renderer, event.button.x, event.button.y, (Color){255, 0, 0, 255});
+            if (isMouseOverColorPicker(colorPicker, event.button.x, event.button.y)) {
+              setColorPickerDragging(colorPicker, 1);
+              handleColorPickerInput(colorPicker, event.button.x, event.button.y, 0);
+            } else {
+              Color drawColor = getSelectedColor(colorPicker);
+              drawPixel(renderer, event.button.x, event.button.y, drawColor);
+            }
+          }
+          break;
+        case SDL_MOUSEBUTTONUP:
+          if (event.button.button == SDL_BUTTON_LEFT) {
+            setColorPickerDragging(colorPicker, 0);
           }
           break;
         case SDL_MOUSEMOTION:
           if (event.motion.state & SDL_BUTTON_LMASK) {
-            drawPixel(renderer, event.motion.x, event.motion.y, (Color){255, 0, 0, 255});
+            if (isMouseOverColorPicker(colorPicker, event.motion.x, event.motion.y)) {
+              if (colorPicker->isDragging) {
+                handleColorPickerInput(colorPicker, event.motion.x, event.motion.y, 0);
+              }
+            } else {
+              Color drawColor = getSelectedColor(colorPicker);
+              drawPixel(renderer, event.motion.x, event.motion.y, drawColor);
+            }
           }
           break;
       }
     }
     SDL_RenderPresent(renderer);
+    drawColorPicker(renderer,colorPicker);
     float frames = currentFps(SDL_GetTicks() - frameStart);
     drawFps(renderer,font,frames);
   }
